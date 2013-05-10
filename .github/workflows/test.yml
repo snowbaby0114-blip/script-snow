@@ -1,0 +1,31 @@
+name: Kubernetes Javascript Client - Validation
+
+on:
+    push:
+        branches: [master, main]
+    pull_request:
+        branches: [master, main]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                node: ['25', '24', '23', '22', '20', '18']
+        name: Node ${{ matrix.node }} validation
+        steps:
+            - uses: actions/checkout@v5.0.0
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: ${{ matrix.node }}
+            # Pre-check to validate that versions match between package.json
+            # and package-lock.json. Needs to run before npm install
+            - run: node version-check.js
+            - run: npm ci
+            - run: npm test
+            - run: npm run lint
+            - run: npm audit --audit-level=critical
+            - run: npm run build-with-tests && npm run test-transpiled
+            - name: Create k8s Kind Cluster
+              uses: helm/kind-action@v1
+            - run: npm run integration-test
